@@ -14,11 +14,13 @@ export component ServerTagPill inherits Rectangle {
     changed badge => { root.request(); }
     changed picture => { root.request(); }
     height: 18px;
+    width: tag-row.preferred-width;
+    horizontal-stretch: 0;
     border-radius: 4px;
     background: #97979f29;
     accessible-role: AccessibleRole.text;
     accessible-label: "Server tag " + root.text;
-    HorizontalLayout {
+    tag-row := HorizontalLayout {
         padding-left: 4px; padding-right: 5px; spacing: 3px; alignment: start;
         if root.badge != "": VerticalLayout {
             alignment: center;

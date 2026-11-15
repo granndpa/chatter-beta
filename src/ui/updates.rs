@@ -76,16 +76,45 @@ fn install(adapter: &Rc<RefCell<Adapter>>, window: &ChatterWindow) {
         return;
     }
     window.set_update_status("Updating...".into());
+    window.set_update_progress(SharedString::default());
+    // How much has arrived, under the bar, while it downloads.
+    let total = release.size;
+    let ticker = Rc::new(slint::Timer::default());
+    {
+        let weak = window.as_weak();
+        ticker.start(slint::TimerMode::Repeated, Duration::from_millis(300), move || {
+            let Some(window) = weak.upgrade() else { return };
+            let mb = |bytes: u64| bytes as f64 / 1_048_576.0;
+            let got = updater::downloaded();
+            window.set_update_progress(
+                match total {
+                    Some(total) if total > 0 => format!(
+                        "{:.1} of {:.1} MB ({}%)",
+                        mb(got),
+                        mb(total),
+                        (got * 100 / total).min(100)
+                    ),
+                    _ => format!("{:.1} MB downloaded", mb(got)),
+                }
+                .into(),
+            );
+        });
+    }
     let (sent, answer) = mpsc::channel();
     std::thread::spawn(move || {
         let _ = sent.send(updater::install(&release));
     });
     let weak = window.as_weak();
-    wait(answer, move |installed| match installed {
+    wait(answer, move |installed| match (drop(ticker), installed).1 {
         Ok(()) if cfg!(windows) => {
             let _ = slint::quit_event_loop();
         }
         Ok(()) => {
+            if let Some(window) = weak.upgrade() {
+                window.set_update_status(SharedString::default());
+            }
+        }
+        Err(error) if error == "cancelled" => {
             if let Some(window) = weak.upgrade() {
                 window.set_update_status(SharedString::default());
             }
@@ -100,6 +129,7 @@ fn install(adapter: &Rc<RefCell<Adapter>>, window: &ChatterWindow) {
 }
 
 pub(super) fn bind(window: &ChatterWindow, adapter: &Rc<RefCell<Adapter>>) {
+    window.on_cancel_update(updater::cancel);
     {
         let (state, weak) = (Rc::downgrade(adapter), window.as_weak());
         window.on_install_update(move || {

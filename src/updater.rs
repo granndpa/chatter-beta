@@ -18,6 +18,8 @@ pub struct Release {
     pub download: Option<String>,
     /// The release's page.
     pub page: String,
+    /// The Windows ZIP's size in bytes, when GitHub says.
+    pub size: Option<u64>,
 }
 
 fn curl() -> Command {
@@ -54,6 +56,9 @@ fn parse(body: &[u8]) -> Result<Release, String> {
         .ok_or("the release has no version")?
         .trim_start_matches('v')
         .to_owned();
+    let size = value["assets"].as_array().and_then(|assets| {
+        assets.iter().find(|asset| asset["name"] == ASSET)?["size"].as_u64()
+    });
     let download = value["assets"].as_array().and_then(|assets| {
         assets
             .iter()
@@ -62,7 +67,20 @@ fn parse(body: &[u8]) -> Result<Release, String> {
             .map(str::to_owned)
     });
     let page = value["html_url"].as_str().unwrap_or_default().to_owned();
-    Ok(Release { version, download, page })
+    Ok(Release { version, download, page, size })
+}
+
+static CANCELLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static DOWNLOADED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Stops the update being downloaded; this version keeps running.
+pub fn cancel() {
+    CANCELLED.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// How many bytes of the update have arrived so far.
+pub fn downloaded() -> u64 {
+    DOWNLOADED.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Whether `latest` is a higher version than `current`, part by part.
@@ -89,14 +107,36 @@ pub fn install(release: &Release) -> Result<(), String> {
     let _ = std::fs::remove_dir_all(&work);
     std::fs::create_dir_all(&work).map_err(|error| error.to_string())?;
     let zip = work.join(ASSET);
-    let downloaded = curl()
-        .args(["-sSfL", "--max-time", "300", "-o"])
+    use std::sync::atomic::Ordering::Relaxed;
+    CANCELLED.store(false, Relaxed);
+    DOWNLOADED.store(0, Relaxed);
+    let mut download = curl()
+        .args(["-sSfL", "--max-time", "600", "-o"])
         .arg(&zip)
         .arg(url)
-        .status()
+        .spawn()
         .map_err(|error| error.to_string())?;
-    if !downloaded.success() {
+    let finished = loop {
+        if CANCELLED.load(Relaxed) {
+            let _ = download.kill();
+            let _ = download.wait();
+            let _ = std::fs::remove_dir_all(&work);
+            return Err("cancelled".into());
+        }
+        if let Ok(meta) = std::fs::metadata(&zip) {
+            DOWNLOADED.store(meta.len(), Relaxed);
+        }
+        match download.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(200)),
+            Err(error) => return Err(error.to_string()),
+        }
+    };
+    if !finished.success() {
         return Err("the download failed".into());
+    }
+    if CANCELLED.load(Relaxed) {
+        return Err("cancelled".into());
     }
     let unpacked = Command::new("tar")
         .creation_flags(NO_WINDOW)

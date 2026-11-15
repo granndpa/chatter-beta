@@ -568,10 +568,10 @@ export component ChannelRow inherits Rectangle {
                     HorizontalLayout {
                         spacing: 4px;
                         Text {
-                            text: root.text; color: root.ink; font-size: ClientStyle.text-size; font-weight: ClientStyle.enabled ? (root.selected || root.attention ? 600 : 500) : root.unread ? 700 : root.selected ? 700 : 500;
+                            text: root.text; color: root.ink; font-size: ClientStyle.enabled ? ClientStyle.text-size - 1px : ClientStyle.text-size; font-weight: ClientStyle.enabled ? (root.selected || root.attention ? 600 : 500) : root.unread ? 700 : root.selected ? 700 : 500;
                             vertical-alignment: center; overflow: elide; horizontal-stretch: 0;
                         }
-                        if root.tag != "": Middle { ServerTagPill { text: root.tag; badge: root.tag-badge; } }
+                        if root.tag != "": Middle { horizontal-stretch: 0; ServerTagPill { text: root.tag; badge: root.tag-badge; } }
                         if root.official: Middle {
                             Rectangle {
                                 // Discord's verified-style badge: blurple, 16px, a check and OFFICIAL.

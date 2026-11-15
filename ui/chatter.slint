@@ -183,6 +183,10 @@ export component ChatterWindow inherits Window {
     in property <bool> header-verified;
     /// The address of the server's banner, which fills the top of its sidebar.
     in property <string> header-banner;
+    /// How much of an update has downloaded, such as "12.0 of 58.3 MB (20%)".
+    in property <string> update-progress;
+    /// Stops the update downloading.
+    callback cancel-update;
     /// How many scheduled events the server has; the "N Events" row opens them.
     in property <int> header-events;
     // A Discord server's or channel's invite dialog: the link, and the
@@ -2852,7 +2856,7 @@ export component ChatterWindow inherits Window {
                         Text {
                             text: root.room-selected ? root.room-name : root.requests-open ? "Requests" : root.friends-open ? "Friends" : root.browse-open ? "Browse Channels" : root.sidebar-title;
                             color: root.room-selected || root.requests-open || root.friends-open || root.browse-open ? Theme.text : Theme.secondary;
-                            font-size: 16px; font-weight: ClientStyle.enabled ? 600 : 700; overflow: elide; vertical-alignment: center;
+                            font-size: ClientStyle.enabled ? 15px : 16px; font-weight: ClientStyle.enabled ? 500 : 700; overflow: elide; vertical-alignment: center;
                             max-width: ClientStyle.enabled && root.has-topic ? 240px : 100000px;
                             // The name gives way to what follows it, and fills the bar when nothing does.
                             horizontal-stretch: (root.room-has-activity && root.room-direct) || root.friends-open || root.has-topic ? 0 : 1;
@@ -5029,6 +5033,19 @@ export component ChatterWindow inherits Window {
                     }
                 }
             }
+            if root.update-progress != "": Text { text: root.update-progress; color: Theme.muted; font-size: 13px; horizontal-alignment: center; }
+            HorizontalLayout {
+                alignment: center; padding-top: 12px;
+                Rectangle {
+                    width: cancel-text.preferred-width + 32px; height: 36px; border-radius: 8px;
+                    background: cancel-touch.has-hover ? #c03537 : #da373c;
+                    accessible-role: button; accessible-label: "Cancel update";
+                    accessible-action-default => { root.cancel-update(); }
+                    cancel-text := Text { text: "Cancel update"; color: #ffffff; font-size: 14px; font-weight: 600; }
+                    cancel-touch := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.cancel-update(); } }
+                }
+            }
+            Text { text: "Update stuck? Cancel it and keep using this version. You can try again from the Update button."; color: Theme.muted; font-size: 12px; horizontal-alignment: center; }
         }
         updating-turn := Rectangle {
             property <float> value: Math.mod(animation-tick() / 1400ms, 1);
