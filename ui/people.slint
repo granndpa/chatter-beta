@@ -17,6 +17,8 @@ export struct MemberRow {
     /// A custom status or what they're doing, under the name, and the
     /// address of its custom emoji's picture.
     activity: string, activity-emoji: string,
+    /// The icon before it: 1 a controller, 2 music, 3 a screen.
+    activity-icon: int,
     picture-url: string,
     /// Timed out in their Discord server, marked with a clock by the name.
     timed-out: bool,
@@ -145,7 +147,7 @@ export component MemberPanel inherits Rectangle {
                             }
                         }
                         if member.activity != "" || member.activity-emoji != "": StatusText {
-                            text: member.activity; emoji-url: member.activity-emoji; font-size: 12px;
+                            text: member.activity; emoji-url: member.activity-emoji; icon: member.activity-icon; font-size: 12px;
                             opacity: member.presence == "offline" ? 0.5 : 1;
                         }
                     }

@@ -32,6 +32,16 @@ impl DateFormat {
 }
 
 const AUTO_FORMAT: u8 = 0;
+
+/// What goes between hours and minutes, as the system's clock writes it.
+static SEPARATOR: AtomicU8 = AtomicU8::new(b':');
+
+/// Sets what goes between hours and minutes, such as `.` for 18.25.
+pub fn set_time_separator(separator: char) {
+    if separator.is_ascii_punctuation() {
+        SEPARATOR.store(separator as u8, Ordering::Relaxed);
+    }
+}
 static FORMAT: AtomicU8 = AtomicU8::new(AUTO_FORMAT);
 
 /// Sets the date format for what follows; none follows the clock: 12-hour is
@@ -114,7 +124,11 @@ where
         (false, false) => "%H:%M",
         (false, true) => "%H:%M:%S",
     };
-    at(zone, seconds).format(format).to_string()
+    let text = at(zone, seconds).format(format).to_string();
+    match SEPARATOR.load(Ordering::Relaxed) {
+        b':' => text,
+        separator => text.replace(':', &char::from(separator).to_string()),
+    }
 }
 
 /// When a Unix time is from `now`, as Discord's client words an audit log

@@ -987,6 +987,8 @@ impl Adapter {
                     String::new()
                 };
                 let (detail, detail_emoji) = dm_detail(room);
+                let (detail, detail_icon) = activity_icon(detail);
+                let tag = room.person.as_deref().and_then(|person| self.app.person_tag(person));
                 let voice = room
                     .person
                     .as_deref()
@@ -1066,6 +1068,13 @@ impl Adapter {
                     .into(),
                     detail,
                     detail_emoji,
+                    detail_icon,
+                    tag: tag.as_ref().map(|tag| tag.text.as_str()).unwrap_or_default().into(),
+                    tag_badge: tag
+                        .as_ref()
+                        .and_then(|tag| tag.badge.as_deref())
+                        .unwrap_or_default()
+                        .into(),
                     voice_room: voice.map_or("", |place| place.room).into(),
                     voice_channel: voice.map_or("", |place| place.channel).into(),
                     voice_server: voice.map_or("", |place| place.server).into(),
@@ -1185,8 +1194,15 @@ impl Adapter {
             .as_deref()
             .unwrap_or_else(|| display_part(account));
         window.set_account(account.into());
-        window.set_account_name(account_name.into());
-        window.set_account_username(state.account_username.as_deref().unwrap_or_default().into());
+        // Streamer Mode keeps this account's names off a stream.
+        if super::streamer::hides_info() {
+            window.set_account_name("Streamer Mode".into());
+        } else {
+            window.set_account_name(account_name.into());
+        }
+        window.set_account_username(super::streamer::handle(
+            state.account_username.as_deref().unwrap_or_default(),
+        ));
         window.set_account_user_id(state.discord_user.as_deref().unwrap_or_default().into());
         window.set_account_loaded(state.discord_account.is_some());
         if let Some(details) = &state.discord_account {
@@ -1873,6 +1889,7 @@ impl Adapter {
                 .enumerate()
                 .map(|(index, member)| {
                     let (activity, activity_emoji) = activity_line(member.activity.as_deref());
+                    let (activity, activity_icon) = activity_icon(activity);
                     MemberRow {
                         id: member.id.clone().into(),
                         name: crate::emoji_text::text(&member.name).into(),
@@ -1896,6 +1913,7 @@ impl Adapter {
                         // One line under the name, as Discord shows it.
                         activity,
                         activity_emoji,
+                        activity_icon,
                         // Discord names its groups; Matrix members group by role.
                         heading: if let Some(group) = &member.group {
                             if index == 0 || members[index - 1].group.as_ref() != Some(group) {
@@ -3423,18 +3441,27 @@ impl Adapter {
             if custom_emoji::add(in_messages().filter_map(|emoji| arrived(state, emoji))) {
                 self.restyle = true;
             }
-            let usable = if pictures_arrived {
-                self.app.emoji_sets()
-            } else {
-                Vec::new()
-            };
+            // Emoji pictures are found by their addresses: listing every
+            // server's emoji built thousands of strings for each avatar that
+            // arrived while scrolling.
             let state = &self.app.state;
+            let pictured = pictures_arrived
+                .then(|| {
+                    state
+                        .pictures
+                        .iter()
+                        .filter_map(|(url, picture)| Some((emoji_id(url)?, picture.as_ref())))
+                })
+                .into_iter()
+                .flatten();
             let added = custom_emoji::add_images(
-                usable
-                    .iter()
-                    .flat_map(|set| &set.emoji)
-                    .chain(state.messages.iter().flat_map(|message| &message.emoji))
-                    .filter_map(|emoji| arrived(state, emoji)),
+                pictured.chain(
+                    state
+                        .messages
+                        .iter()
+                        .flat_map(|message| &message.emoji)
+                        .filter_map(|emoji| arrived(state, emoji)),
+                ),
             );
             if added {
                 if self.emoji_word.is_some() {
@@ -4768,6 +4795,14 @@ fn staged_rows(
         });
     }
     rows
+}
+
+/// A custom emoji's id, from the address of its picture.
+fn emoji_id(url: &str) -> Option<&str> {
+    let (_, rest) = url.split_once("/emojis/")?;
+    rest.split(['.', '?'])
+        .next()
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
 }
 
 fn arrived<'a>(

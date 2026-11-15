@@ -1585,6 +1585,10 @@ impl Tracker {
             id: private.id.clone(),
             name: title,
             avatar,
+            tag: (!private.group)
+                .then(|| private.recipients.first())
+                .flatten()
+                .and_then(|user| names.server_tag(user).cloned()),
             official: !private.group
                 && private
                     .recipients

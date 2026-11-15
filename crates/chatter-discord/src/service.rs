@@ -106,6 +106,9 @@ pub struct Account {
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Conversation {
     pub id: String,
+    /// The server tag a one-to-one DM's person wears.
+    #[serde(default)]
+    pub tag: Option<crate::message::ServerTag>,
     pub name: String,
     /// The other person's avatar in a DM, or a group DM's icon.
     pub avatar: Option<String>,

@@ -4311,6 +4311,21 @@ impl Application {
         None
     }
 
+    /// The Discord server tag a DM's person wears, as the DM list knows it.
+    pub fn person_tag(&self, user: &str) -> Option<chat::ServerTag> {
+        #[cfg(feature = "discord")]
+        if let Some(snapshot) = &self.discord {
+            return snapshot
+                .conversations
+                .iter()
+                .find(|dm| dm.person.as_deref() == Some(user))
+                .and_then(|dm| dm.tag.as_ref())
+                .map(|tag| chat::ServerTag { text: tag.text.clone(), badge: tag.badge.clone() });
+        }
+        let _ = user;
+        None
+    }
+
     /// Every custom emoji of every server the account is in, by server, the
     /// room's own server first, each saying whether this account may use it in
     /// the room it is looking at. The picker shows all of them, the ones it may

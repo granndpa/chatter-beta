@@ -300,6 +300,10 @@ fn prepare(window: &ChatterWindow) {
     }
     window.set_emoji_font(emoji::family().into());
     emoji_text::register();
+    #[cfg(windows)]
+    if let Some(separator) = windows_time_separator() {
+        chatter_core::clock::set_time_separator(separator);
+    }
     copy_whole_messages(window);
     mark_autoscrolls(window);
     type_anywhere(window);
@@ -2881,6 +2885,49 @@ fn dm_detail(room: &chatter_core::chat::ChatRoom) -> (SharedString, SharedString
         );
     }
     activity_line(room.activity.as_deref())
+}
+
+/// What Windows puts between hours and minutes, as Discord follows it.
+#[cfg(windows)]
+fn windows_time_separator() -> Option<char> {
+    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_SZ, RegGetValueW};
+    let key: Vec<u16> = "Control Panel\\International\0".encode_utf16().collect();
+    let name: Vec<u16> = "sTime\0".encode_utf16().collect();
+    let mut buffer = [0u16; 8];
+    let mut size = std::mem::size_of_val(&buffer) as u32;
+    // SAFETY: both names end in a nul, and the buffer's size is given.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            name.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            buffer.as_mut_ptr().cast(),
+            &mut size,
+        )
+    };
+    if status != 0 {
+        return None;
+    }
+    char::from_u32(u32::from(buffer[0])).filter(|c| *c != '\0')
+}
+
+/// What someone is doing without its verb, and the icon Discord shows for
+/// it instead: 1 a controller, 2 a music note, 3 a screen, 5 a trophy.
+fn activity_icon(words: SharedString) -> (SharedString, i32) {
+    for (verb, icon) in [
+        ("Playing ", 1),
+        ("Listening to ", 2),
+        ("Watching ", 3),
+        ("Streaming ", 3),
+        ("Competing in ", 5),
+    ] {
+        if let Some(rest) = words.strip_prefix(verb) {
+            return (rest.into(), icon);
+        }
+    }
+    (words, 0)
 }
 
 /// A count with its noun, such as "1 member" or "12 members".

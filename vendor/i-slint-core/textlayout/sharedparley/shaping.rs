@@ -241,15 +241,7 @@ impl LayoutWithoutLineBreaksBuilder {
                         );
                     }
                     Style::Link => {
-                        // Chatter: an emoji's link is its picture, and a picture
-                        // has nothing to underline: the line would show across
-                        // the bottom of it.
-                        if !is_pictures(&text[span.range.clone()]) {
-                            builder.push(
-                                parley::StyleProperty::Underline(true),
-                                span.range.clone(),
-                            );
-                        }
+                        // Chatter: links aren't underlined, as Discord draws them.
                         builder.push(
                             parley::StyleProperty::Brush(Brush {
                                 override_fill_color: None,

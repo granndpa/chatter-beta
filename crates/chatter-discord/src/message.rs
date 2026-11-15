@@ -1117,7 +1117,7 @@ impl serde::Serialize for Text {
 
 /// The server tag someone wears by their name: up to four letters, and the
 /// address of its badge picture.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ServerTag {
     pub text: String,
     pub badge: Option<String>,
