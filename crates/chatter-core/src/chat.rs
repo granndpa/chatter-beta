@@ -718,6 +718,8 @@ pub struct ProfileRole {
 pub struct ServerTag {
     pub text: String,
     pub badge: Option<String>,
+    /// The Discord server it's from, by id.
+    pub guild: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

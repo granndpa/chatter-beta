@@ -1075,6 +1075,7 @@ impl Adapter {
                         .and_then(|tag| tag.badge.as_deref())
                         .unwrap_or_default()
                         .into(),
+                    tag_guild: tag.as_ref().and_then(|tag| tag.guild.as_deref()).unwrap_or_default().into(),
                     voice_room: voice.map_or("", |place| place.room).into(),
                     voice_channel: voice.map_or("", |place| place.channel).into(),
                     voice_server: voice.map_or("", |place| place.server).into(),
@@ -1900,6 +1901,7 @@ impl Adapter {
                             .and_then(|tag| tag.badge.as_deref())
                             .unwrap_or_default()
                             .into(),
+                        tag_guild: member.tag.as_ref().and_then(|tag| tag.guild.as_deref()).unwrap_or_default().into(),
                         initial: initial(&member.name),
                         tint: tint(&member.name),
                         picture: slint::Image::default(),
@@ -3138,6 +3140,7 @@ impl Adapter {
             first_unread: None,
             revealed: &self.revealed,
             restyle: std::mem::take(&mut self.aside_restyle),
+            rebuild: None,
         };
         let layout = &self.layout;
         show_timeline(
@@ -3438,8 +3441,24 @@ impl Adapter {
         if pictures_arrived || messages_changed {
             let state = &self.app.state;
             let in_messages = || state.messages.iter().flat_map(|message| &message.emoji);
+            // Only the messages showing an emoji that just got its glyph are
+            // built again, not the whole timeline.
+            let fresh: std::collections::HashSet<&str> = in_messages()
+                .filter(|emoji| custom_emoji::glyph(&emoji.id).is_none())
+                .filter_map(|emoji| arrived(state, emoji))
+                .map(|(id, _)| id)
+                .collect();
             if custom_emoji::add(in_messages().filter_map(|emoji| arrived(state, emoji))) {
-                self.restyle = true;
+                self.rebuild.extend(
+                    state
+                        .messages
+                        .iter()
+                        .filter(|message| {
+                            message.emoji.iter().any(|emoji| fresh.contains(emoji.id.as_str()))
+                        })
+                        .map(|message| message.id.clone()),
+                );
+                self.aside_restyle = true;
             }
             // Emoji pictures are found by their addresses: listing every
             // server's emoji built thousands of strings for each avatar that
@@ -3484,9 +3503,10 @@ impl Adapter {
             self.restyle |= polls::open_poll(&state.messages, minute * 60) | new_day;
         }
         let restyle = std::mem::take(&mut self.restyle) | super::streamer::take_changed();
+        let rebuild = std::mem::take(&mut self.rebuild);
         // The thread beside builds its rows again with the timeline's.
         self.aside_restyle |= restyle;
-        if messages_changed || selection_changed || reset || pictures_arrived || restyle {
+        if messages_changed || selection_changed || reset || pictures_arrived || restyle || !rebuild.is_empty() {
             if selection_changed || reset {
                 window.set_react_item(SharedString::default());
                 window.set_active_item(SharedString::default());
@@ -3497,6 +3517,7 @@ impl Adapter {
                 first_unread: state.first_unread.as_deref(),
                 revealed: &self.revealed,
                 restyle,
+                rebuild: Some(&rebuild),
             };
             let layout = &self.layout;
             let translations = &self.translations;

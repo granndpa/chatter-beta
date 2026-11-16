@@ -76,6 +76,7 @@ mod gallery;
 mod overlay;
 mod tabs;
 mod disguise;
+mod tag_card;
 mod tweaks;
 mod updates;
 use messages::*;
@@ -1882,6 +1883,8 @@ struct Adapter {
     clock_minute: u64,
     /// The preferences that shape message rows changed, so they're built again.
     restyle: bool,
+    /// Messages whose rows are built again on the next refresh, by id.
+    rebuild: std::collections::HashSet<String>,
     /// Appearance's theme editor, while it's open.
     theme_editor: Option<theme::Editor>,
     /// Where the `@` of the word being mentioned is in the composer text.
@@ -2135,6 +2138,7 @@ impl Adapter {
                 voice_log: Vec::new(),
                 clock_minute: 0,
                 restyle: false,
+                rebuild: Default::default(),
                 theme_editor: None,
                 aside_messages: Arc::new(Vec::new()),
                 aside_fit: 0,

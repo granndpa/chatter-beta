@@ -1,9 +1,28 @@
 ﻿import { PictureStore } from "controls.slint";
 
+// The card a server tag opens, as Discord's: the server it's from.
+export global TagCard {
+    in-out property <bool> open;
+    in-out property <string> guild;
+    in-out property <string> text;
+    in-out property <string> badge;
+    in-out property <string> name;
+    in-out property <string> icon;
+    in-out property <string> banner;
+    in-out property <bool> joined;
+    in-out property <length> x;
+    in-out property <length> y;
+    /// A tag was clicked: its server's id, letters, badge, and where.
+    callback show(string, string, string, length, length);
+    callback go-to-server(string);
+}
+
 // Discord's server tag by a name: its badge and up to four letters on a grey pill.
 export component ServerTagPill inherits Rectangle {
     in property <string> text;
     in property <string> badge;
+    /// The server it's from, by id, which a click shows.
+    in property <string> guild;
     property <image> picture: root.badge != "" ? PictureStore.picture(root.badge, PictureStore.revision) : @image-url("");
     function request() {
         if root.badge != "" && root.picture.width == 0 {
@@ -28,4 +47,69 @@ export component ServerTagPill inherits Rectangle {
         }
         Text { text: root.text; color: #dbdee1; font-size: 12px; font-weight: 600; vertical-alignment: center; }
     }
+    TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { TagCard.show(root.guild, root.text, root.badge, self.absolute-position.x, self.absolute-position.y + root.height + 4px); }
+    }
 }
+
+// A picture asked for as it shows.
+component CardPicture inherits Image {
+    in property <string> url;
+    source: root.url != "" ? PictureStore.picture(root.url, PictureStore.revision) : @image-url("");
+    function request() {
+        if root.url != "" && self.source.width == 0 {
+            PictureStore.request(root.url);
+        }
+    }
+    init => { root.request(); }
+    changed url => { root.request(); }
+}
+
+// The card over everything, closed by a click outside it.
+export component TagCardPopup inherits Rectangle {
+    if TagCard.open: Rectangle {
+        width: root.width; height: root.height;
+        TouchArea { clicked => { TagCard.open = false; } }
+        Rectangle {
+            x: max(8px, min(TagCard.x, root.width - 308px));
+            y: max(8px, min(TagCard.y, root.height - self.height - 8px));
+            width: 300px; height: card-column.preferred-height;
+            background: #232428; border-radius: 12px; border-width: 1px; border-color: #3f4147; clip: true;
+            TouchArea { }
+            card-column := VerticalLayout {
+                Rectangle {
+                    height: 64px; background: #3a3c42;
+                    if TagCard.banner != "": CardPicture { url: TagCard.banner; width: parent.width; height: parent.height; image-fit: cover; }
+                }
+                VerticalLayout {
+                    padding: 16px; spacing: 12px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Rectangle {
+                            width: 48px; height: 48px; border-radius: 14px; background: #2b2d31; clip: true;
+                            if TagCard.icon != "": CardPicture { url: TagCard.icon; width: 48px; height: 48px; image-fit: cover; }
+                        }
+                        VerticalLayout {
+                            alignment: center; spacing: 4px;
+                            Text { text: TagCard.name; color: #f2f3f5; font-size: 16px; font-weight: 600; overflow: elide; }
+                            HorizontalLayout { alignment: start; ServerTagPill { text: TagCard.text; badge: TagCard.badge; guild: TagCard.guild; } }
+                        }
+                    }
+                    if !TagCard.joined: Text {
+                        text: "You're not in this server, so Chatter can't show more about it yet.";
+                        color: #b5bac1; font-size: 13px; wrap: word-wrap;
+                    }
+                    if TagCard.joined: Rectangle {
+                        height: 38px; border-radius: 8px;
+                        background: go-touch.has-hover ? #1a6334 : #248046;
+                        accessible-role: button; accessible-label: "Go to Server";
+                        Text { text: "Go to Server"; color: #ffffff; font-size: 14px; font-weight: 600; }
+                        go-touch := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { TagCard.go-to-server(TagCard.guild); } }
+                    }
+                }
+            }
+        }
+    }
+}
+

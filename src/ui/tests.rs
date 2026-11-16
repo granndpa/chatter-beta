@@ -2762,6 +2762,7 @@ fn older_messages_go_in_above_without_moving_those_shown() {
         first_unread: None,
         revealed: &revealed,
         restyle: false,
+        rebuild: None,
     };
     let model = Rc::new(VecModel::default());
     let mut rows = Vec::new();

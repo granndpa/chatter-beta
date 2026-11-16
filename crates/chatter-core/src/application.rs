@@ -4320,7 +4320,7 @@ impl Application {
                 .iter()
                 .find(|dm| dm.person.as_deref() == Some(user))
                 .and_then(|dm| dm.tag.as_ref())
-                .map(|tag| chat::ServerTag { text: tag.text.clone(), badge: tag.badge.clone() });
+                .map(|tag| chat::ServerTag { text: tag.text.clone(), badge: tag.badge.clone(), guild: tag.guild.clone() });
         }
         let _ = user;
         None

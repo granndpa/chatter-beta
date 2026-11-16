@@ -105,9 +105,18 @@ fn install(adapter: &Rc<RefCell<Adapter>>, window: &ChatterWindow) {
         let _ = sent.send(updater::install(&release));
     });
     let weak = window.as_weak();
+    let state = Rc::downgrade(adapter);
     wait(answer, move |installed| match (drop(ticker), installed).1 {
         Ok(()) if cfg!(windows) => {
-            let _ = slint::quit_event_loop();
+            // Straight out, so the new version starts within a second or two:
+            // a normal quit waits a minute for Discord's connections and
+            // background work to wind down.
+            if let Some(adapter) = state.upgrade() {
+                let mut adapter = adapter.borrow_mut();
+                super::placement::flush(&adapter);
+                adapter.tray = None;
+            }
+            std::process::exit(0);
         }
         Ok(()) => {
             if let Some(window) = weak.upgrade() {

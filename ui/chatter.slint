@@ -1,3 +1,5 @@
+import { TagCardPopup, TagCard } from "server-tag.slint";
+export { TagCard }
 import { AccountPopover } from "chatter/account-popover.slint";
 import { ClientStyle } from "chatter/style.slint";
 import { WindowBar } from "chatter/window-bar.slint";
@@ -5003,6 +5005,7 @@ export component ChatterWindow inherits Window {
             clicked => { if root.streamer-mode { root.streamer-mode = false; root.preferences-changed(); } }
         }
     }
+    TagCardPopup { width: root.width; height: root.height; }
     // While a new version downloads and Chatter restarts into it: a screen
     // over everything, as Discord shows its own.
     if root.update-status == "Updating...": Rectangle {

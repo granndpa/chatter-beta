@@ -26,6 +26,7 @@ fn switching_unrelated_timelines_emits_one_reset_instead_of_thousands_of_changes
         first_unread: None,
         revealed: &revealed,
         restyle: false,
+        rebuild: None,
     };
     show_timeline(&model, &mut rows, &[], &first, &marks, message_row_plain);
     let notices = Box::pin(ModelChangeListenerContainer::new(Notices::default()));

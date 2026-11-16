@@ -1121,6 +1121,9 @@ impl serde::Serialize for Text {
 pub struct ServerTag {
     pub text: String,
     pub badge: Option<String>,
+    /// The server it's from.
+    #[serde(default)]
+    pub guild: Option<String>,
 }
 
 /// A user object's `primary_guild` (or older `clan`), when worn.
@@ -1135,7 +1138,8 @@ fn server_tag(guild: &Value) -> Option<ServerTag> {
         )),
         _ => None,
     };
-    Some(ServerTag { text, badge })
+    let guild = guild["identity_guild_id"].as_str().map(str::to_owned);
+    Some(ServerTag { text, badge, guild })
 }
 
 /// Who is who, learned from the gateway and from messages.

@@ -45,6 +45,8 @@ pub(super) struct Marks<'a> {
     pub revealed: &'a HashSet<String>,
     /// Every row is built again, as for a new layout.
     pub restyle: bool,
+    /// These messages' rows, by id, are built again.
+    pub rebuild: Option<&'a HashSet<String>>,
 }
 
 /// What a row shows of the messages around it, and of its author's picture.
@@ -112,6 +114,7 @@ pub(super) fn show_timeline(
         let was = at.get(message.id.as_str()).copied();
         // A row the backend sent again is the same one.
         let unchanged = !marks.restyle
+            && !marks.rebuild.is_some_and(|rebuild| rebuild.contains(&message.id))
             && was.is_some_and(|was| Arc::ptr_eq(&shown[was], message) || shown[was] == *message);
         let date = chatter_core::clock::date(message.timestamp);
         let new_day = date.is_some() && (before.is_none() || before_date != date);
@@ -686,6 +689,7 @@ pub(super) fn message_row_within(
             .and_then(|tag| tag.badge.as_deref())
             .unwrap_or_default()
             .into(),
+        tag_guild: message.tag.as_ref().and_then(|tag| tag.guild.as_deref()).unwrap_or_default().into(),
         initial: initial(&message.author),
         tint: tint(&message.author),
         // Virtualized avatars resolve their URLs when their components are built.
@@ -821,6 +825,7 @@ pub(super) fn message_row_within(
             bot: false,
             tag: SharedString::default(),
             tag_badge: SharedString::default(),
+            tag_guild: SharedString::default(),
             forwarded: false,
             body: "Blocked message.".into(),
             styled: slint::StyledText::from_markdown(&note)

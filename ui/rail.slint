@@ -69,7 +69,7 @@ export struct RoomRow {
     /// The icon before the detail: 1 a controller, 2 music, 3 a screen.
     detail-icon: int,
     /// The server tag a DM's person wears, and its badge's address.
-    tag: string, tag-badge: string,
+    tag: string, tag-badge: string, tag-guild: string,
     /// The server voice channel a one-to-one Discord DM's other person is
     /// in, by room id, with its name and its server's; the room is empty
     /// when they're in none.
@@ -453,6 +453,7 @@ export component ChannelRow inherits Rectangle {
     in property <int> detail-icon;
     in property <string> tag;
     in property <string> tag-badge;
+    in property <string> tag-guild;
     /// The server voice channel their person is in, as RoomRow has it.
     in property <string> voice-channel;
     in property <string> voice-server;
@@ -571,7 +572,7 @@ export component ChannelRow inherits Rectangle {
                             text: root.text; color: root.ink; font-size: ClientStyle.enabled ? ClientStyle.text-size - 1px : ClientStyle.text-size; font-weight: ClientStyle.enabled ? (root.selected || root.attention ? 600 : 500) : root.unread ? 700 : root.selected ? 700 : 500;
                             vertical-alignment: center; overflow: elide; horizontal-stretch: 0;
                         }
-                        if root.tag != "": Middle { horizontal-stretch: 0; ServerTagPill { text: root.tag; badge: root.tag-badge; } }
+                        if root.tag != "": Middle { horizontal-stretch: 0; ServerTagPill { text: root.tag; badge: root.tag-badge; guild: root.tag-guild; } }
                         if root.official: Middle {
                             Rectangle {
                                 // Discord's verified-style badge: blurple, 16px, a check and OFFICIAL.
@@ -1284,7 +1285,7 @@ export component RoomList inherits Rectangle {
                     official: room.official; wave: room.wave;
                     waved => { root.wave(room.wave); }
                     selected: room.selected; unread: room.unread; badge: room.badge; locked: room.locked;
-                    call: room.call; presence: room.presence; detail: room.detail; detail-emoji: room.detail-emoji; detail-icon: room.detail-icon; tag: room.tag; tag-badge: room.tag-badge;
+                    call: room.call; presence: room.presence; detail: room.detail; detail-emoji: room.detail-emoji; detail-icon: room.detail-icon; tag: room.tag; tag-badge: room.tag-badge; tag-guild: room.tag-guild;
                     voice-channel: room.voice-channel; voice-server: room.voice-server;
                     // Discord doesn't dim a muted voice channel, only a text one.
                     pinned: room.pinned && room.direct; muted: room.muted && !room.voice;

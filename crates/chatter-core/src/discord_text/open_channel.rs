@@ -1822,7 +1822,7 @@ impl OpenChannel {
             bot: message.bot,
             tag: discord
                 .server_tag(&message.author_id)
-                .map(|tag| crate::chat::ServerTag { text: tag.text, badge: tag.badge }),
+                .map(|tag| crate::chat::ServerTag { text: tag.text, badge: tag.badge, guild: tag.guild }),
             forwarded: message.forwarded,
             body,
             formatted: ordinary,
