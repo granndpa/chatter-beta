@@ -404,6 +404,9 @@ pub enum Compose {
 
 #[derive(Default)]
 pub struct AppState {
+    /// The server a clicked server tag is from, as Discord's profile of it
+    /// says, by its id.
+    pub tag_server: Option<(String, Result<chat::TagServer, String>)>,
     pub sticker_picker: StickerPicker,
     pub staged_stickers: HashMap<String, chat::ServerSticker>,
     pub bot_form: Option<crate::commands::bot_forms::BotForm>,
@@ -1823,6 +1826,8 @@ pub enum Action {
         join: bool,
         location: &'static str,
     },
+    /// Look up the server a clicked server tag is from, by its Discord id.
+    ShowServerProfile(String),
     /// Open the invite dialog of a Discord server, by its server id, or of
     /// a channel, by its room id, which makes a link at once; make another
     /// that lasts `max_age` seconds, 0 for good, and works `max_uses`
@@ -3162,6 +3167,7 @@ impl Application {
             Action::InviteToServer { user, server } => self.invite_to_server(user, server),
             Action::OpenJoinServer => self.open_join(),
             Action::FindInvite(typed) => self.find_invite(typed),
+            Action::ShowServerProfile(guild) => self.show_server_profile(guild),
             Action::OpenInviteLink(code) => self.open_invite_link(code),
             Action::JoinServer => self.join_server(),
             Action::OpenJoinCaptcha => self.open_join_captcha(),
@@ -3847,6 +3853,7 @@ impl Application {
             }
             Event::InviteSent { result, .. } => self.invite_sent(result),
             Event::InviteResolved { code, result } => return self.invite_resolved(code, result),
+            Event::ServerProfile { guild, result } => self.state.tag_server = Some((guild, result)),
             Event::JoinCaptcha { code, page } => return self.join_captcha(code, page),
             Event::ServerJoined { code, result } => return self.server_joined(code, result),
             Event::ServerCreated { result } => return self.server_created(result),
@@ -4309,6 +4316,15 @@ impl Application {
         #[cfg(not(feature = "discord"))]
         let _ = id;
         None
+    }
+
+    /// Asks Discord for the profile of the server a clicked tag is from.
+    fn show_server_profile(&mut self, guild: String) -> Vec<Effect> {
+        self.state.tag_server = None;
+        if self.state.preview || guild.is_empty() {
+            return vec![];
+        }
+        vec![Effect::Backend(Command::Discord(DiscordCommand::ServerProfile { guild }))]
     }
 
     /// The Discord server tag a DM's person wears, as the DM list knows it.

@@ -1113,6 +1113,31 @@ pub(super) fn command(
         }
         return None;
     }
+    if let Command::Discord(DiscordCommand::ServerProfile { guild }) = command {
+        match discord {
+            Ok(discord) => {
+                let (discord, events) = (discord.clone(), events.clone());
+                tokio::spawn(async move {
+                    let result = discord
+                        .server_profile(&guild)
+                        .await
+                        .map(|value| tag_server(&guild, &value))
+                        .map_err(|error| {
+                            tracing::warn!(error = format!("{error:#}"), "could not look up a server profile");
+                            error.to_string()
+                        });
+                    let _ = events.send(Event::ServerProfile { guild, result });
+                });
+            }
+            Err(error) => {
+                let _ = events.send(Event::ServerProfile {
+                    guild,
+                    result: Err(error.into()),
+                });
+            }
+        }
+        return None;
+    }
     if let Command::Discord(DiscordCommand::ResolveInvite { code, typed }) = command {
         match discord {
             Ok(discord) => {
@@ -2109,6 +2134,30 @@ pub(super) fn places_used(
 }
 
 /// What an invite shows, as the application keeps it.
+/// A server's profile from Discord, as a server tag's card shows it.
+fn tag_server(guild: &str, value: &serde_json::Value) -> crate::chat::TagServer {
+    use chatter_discord::ready;
+    // A snowflake carries when it was made: milliseconds since 2015.
+    let founded = guild
+        .parse::<u64>()
+        .ok()
+        .and_then(|id| chrono::DateTime::from_timestamp_millis(((id >> 22) + 1_420_070_400_000) as i64))
+        .map(|at| at.format("Est. %b %Y").to_string())
+        .unwrap_or_default();
+    let hash = |name: &str, other: &str| {
+        value[name].as_str().or_else(|| value[other].as_str()).map(str::to_owned)
+    };
+    crate::chat::TagServer {
+        name: value["name"].as_str().unwrap_or_default().to_owned(),
+        icon: hash("icon_hash", "icon").map(|hash| ready::server_icon(guild, &hash)),
+        banner: hash("banner_hash", "banner").map(|hash| ready::banner(guild, &hash)),
+        members: value["member_count"].as_u64(),
+        online: value["online_count"].as_u64(),
+        description: value["description"].as_str().unwrap_or_default().to_owned(),
+        founded,
+    }
+}
+
 fn invite_preview(preview: &chatter_discord::invite::Preview) -> InvitePreview {
     InvitePreview {
         code: preview.code.clone(),

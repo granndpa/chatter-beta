@@ -722,6 +722,19 @@ pub struct ServerTag {
     pub guild: Option<String>,
 }
 
+/// A Discord server as a server tag's card shows it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TagServer {
+    pub name: String,
+    pub icon: Option<String>,
+    pub banner: Option<String>,
+    pub members: Option<u64>,
+    pub online: Option<u64>,
+    pub description: String,
+    /// When it was made, such as `Est. Oct 2026`.
+    pub founded: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChatMember {
     pub id: String,
@@ -2454,6 +2467,9 @@ pub enum DiscordCommand {
         user: String,
         room: String,
     },
+    /// Look up a server's public profile, by its id, for a server tag's
+    /// card. [`Event::ServerProfile`] follows.
+    ServerProfile { guild: String },
     /// Look up an invite to a Discord server by its code, before joining
     /// by it; `typed` is what someone typed into Join a Server, if they
     /// did. [`Event::InviteResolved`] follows.
@@ -3858,6 +3874,11 @@ pub enum Event {
         user: String,
         room: String,
         result: Result<(), String>,
+    },
+    /// The server profile [`DiscordCommand::ServerProfile`] looked up.
+    ServerProfile {
+        guild: String,
+        result: Result<TagServer, String>,
     },
     /// What the invite [`DiscordCommand::ResolveInvite`] looked up by its
     /// code shows, or why Discord showed nothing.

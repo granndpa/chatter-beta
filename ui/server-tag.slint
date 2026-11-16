@@ -10,6 +10,14 @@ export global TagCard {
     in-out property <string> icon;
     in-out property <string> banner;
     in-out property <bool> joined;
+    /// The server's Discord id, as the tag gave it.
+    in-out property <string> raw;
+    in-out property <string> online;
+    in-out property <string> members;
+    in-out property <string> founded;
+    in-out property <string> description;
+    in-out property <bool> loading;
+    in-out property <bool> failed;
     in-out property <length> x;
     in-out property <length> y;
     /// A tag was clicked: its server's id, letters, badge, and where.
@@ -66,50 +74,69 @@ component CardPicture inherits Image {
     changed url => { root.request(); }
 }
 
-// The card over everything, closed by a click outside it.
+// The card over everything, closed by a click outside it, laid out as
+// Discord's: a banner, the server's icon over its lower edge, then its name
+// and tag, how many are online and in it, and when it was made.
 export component TagCardPopup inherits Rectangle {
     if TagCard.open: Rectangle {
         width: root.width; height: root.height;
         TouchArea { clicked => { TagCard.open = false; } }
         Rectangle {
-            x: max(8px, min(TagCard.x, root.width - 308px));
+            x: max(8px, min(TagCard.x, root.width - self.width - 8px));
             y: max(8px, min(TagCard.y, root.height - self.height - 8px));
-            width: 300px; height: card-column.preferred-height;
-            background: #232428; border-radius: 12px; border-width: 1px; border-color: #3f4147; clip: true;
+            width: 380px; height: card-column.preferred-height;
+            background: #111214; border-radius: 12px; border-width: 1px; border-color: #2e3035; clip: true;
+            drop-shadow-blur: 16px; drop-shadow-color: #00000080;
             TouchArea { }
             card-column := VerticalLayout {
                 Rectangle {
-                    height: 64px; background: #3a3c42;
+                    height: 150px; background: #3a3c42;
                     if TagCard.banner != "": CardPicture { url: TagCard.banner; width: parent.width; height: parent.height; image-fit: cover; }
                 }
                 VerticalLayout {
-                    padding: 16px; spacing: 12px;
+                    padding-left: 20px; padding-right: 20px; padding-top: 46px; padding-bottom: 18px; spacing: 6px;
                     HorizontalLayout {
-                        spacing: 12px;
+                        alignment: start; spacing: 6px;
+                        Text { text: TagCard.name != "" ? TagCard.name : "Server tag"; color: #f2f3f5; font-size: 18px; font-weight: 700; overflow: elide; vertical-alignment: center; }
+                        VerticalLayout { alignment: center; ServerTagPill { text: TagCard.text; badge: TagCard.badge; guild: TagCard.raw; } }
+                    }
+                    if TagCard.online != "" || TagCard.members != "": HorizontalLayout {
+                        alignment: start; spacing: 10px;
+                        if TagCard.online != "": HorizontalLayout {
+                            spacing: 5px;
+                            VerticalLayout { alignment: center; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #23a55a; } }
+                            Text { text: TagCard.online + " Online"; color: #b5bac1; font-size: 15px; }
+                        }
+                        if TagCard.members != "": HorizontalLayout {
+                            spacing: 5px;
+                            VerticalLayout { alignment: center; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #80848e; } }
+                            Text { text: TagCard.members + " Members"; color: #b5bac1; font-size: 15px; }
+                        }
+                    }
+                    if TagCard.founded != "": Text { text: TagCard.founded; color: #b5bac1; font-size: 15px; }
+                    if TagCard.description != "": Text { text: TagCard.description; color: #dbdee1; font-size: 14px; wrap: word-wrap; }
+                    if TagCard.loading: Text { text: "Loading..."; color: #949ba4; font-size: 13px; }
+                    if TagCard.failed && !TagCard.joined: Text { text: "Discord didn't share more about this server."; color: #949ba4; font-size: 13px; wrap: word-wrap; }
+                    if TagCard.joined: VerticalLayout {
+                        padding-top: 8px;
                         Rectangle {
-                            width: 48px; height: 48px; border-radius: 14px; background: #2b2d31; clip: true;
-                            if TagCard.icon != "": CardPicture { url: TagCard.icon; width: 48px; height: 48px; image-fit: cover; }
-                        }
-                        VerticalLayout {
-                            alignment: center; spacing: 4px;
-                            Text { text: TagCard.name; color: #f2f3f5; font-size: 16px; font-weight: 600; overflow: elide; }
-                            HorizontalLayout { alignment: start; ServerTagPill { text: TagCard.text; badge: TagCard.badge; guild: TagCard.guild; } }
+                            height: 38px; border-radius: 8px;
+                            background: go-touch.has-hover ? #1a6334 : #248046;
+                            accessible-role: button; accessible-label: "Go to Server";
+                            Text { text: "Go to Server"; color: #ffffff; font-size: 14px; font-weight: 600; }
+                            go-touch := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { TagCard.go-to-server(TagCard.guild); } }
                         }
                     }
-                    if !TagCard.joined: Text {
-                        text: "You're not in this server, so Chatter can't show more about it yet.";
-                        color: #b5bac1; font-size: 13px; wrap: word-wrap;
-                    }
-                    if TagCard.joined: Rectangle {
-                        height: 38px; border-radius: 8px;
-                        background: go-touch.has-hover ? #1a6334 : #248046;
-                        accessible-role: button; accessible-label: "Go to Server";
-                        Text { text: "Go to Server"; color: #ffffff; font-size: 14px; font-weight: 600; }
-                        go-touch := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { TagCard.go-to-server(TagCard.guild); } }
-                    }
+                }
+            }
+            // The server's icon, over the banner's lower edge.
+            Rectangle {
+                x: 16px; y: 104px; width: 88px; height: 88px; border-radius: 26px; background: #111214;
+                Rectangle {
+                    x: 4px; y: 4px; width: 80px; height: 80px; border-radius: 22px; background: #2b2d31; clip: true;
+                    if TagCard.icon != "": CardPicture { url: TagCard.icon; width: 80px; height: 80px; image-fit: cover; }
                 }
             }
         }
     }
 }
-

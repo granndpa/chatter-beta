@@ -505,6 +505,7 @@ impl Adapter {
         self.show_mfa(window);
         super::bot_forms::show(self, window);
         super::stickers::show(self, window);
+        super::tag_card::show(self, window);
         self.show_dialogs(window);
         self.show_reactions(window);
         self.show_gifs(window);
@@ -1239,8 +1240,21 @@ impl Adapter {
             .discord_playing
             .as_ref()
             .filter(|_| state.online && !state.preview && state.discord_show_game);
-        window.set_account_activity_icon(i32::from(playing.is_some()));
-        window.set_account_activity_bullet(playing.is_some() && custom_status.is_some());
+        // Without a game, the song on Spotify, by its artists, as Discord shows it.
+        let listening = state
+            .discord_spotify
+            .as_ref()
+            .filter(|_| state.online && !state.preview && playing.is_none());
+        window.set_account_activity_icon(if playing.is_some() {
+            1
+        } else if listening.is_some() {
+            2
+        } else {
+            0
+        });
+        window.set_account_activity_bullet(
+            (playing.is_some() || listening.is_some()) && custom_status.is_some(),
+        );
         window.set_account_status(
             if state.preview {
                 "Local only"
@@ -1248,6 +1262,8 @@ impl Adapter {
                 status
             } else if let Some(playing) = playing {
                 &playing.name
+            } else if let Some(song) = listening {
+                song.state.as_deref().unwrap_or(&*song.name)
             } else if let Some(status) = state.account_status.as_deref().filter(|status| *status != "Online") {
                 status
             } else if state.online {

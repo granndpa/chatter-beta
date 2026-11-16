@@ -2268,6 +2268,10 @@ impl Discord {
     /// What an invite shows before joining by it, by its code; see
     /// [`Api::resolve_invite`]. An invite that isn't to a server, which
     /// Chatter doesn't join, is refused.
+    pub async fn server_profile(&self, guild: &str) -> Result<Value> {
+        self.api.server_profile(guild).await
+    }
+
     pub async fn invite(&self, code: &str, typed: Option<&str>) -> Result<invite::Preview> {
         let invite = self.api.resolve_invite(code, typed).await?;
         invite::Preview::of(&invite).context("This invite isn't to a server.")
