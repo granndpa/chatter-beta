@@ -4,7 +4,7 @@ A native Discord client for Windows and Linux, written in Rust with Slint. No
 web browser inside, so it idles at a fraction of the memory Discord's own app
 uses.
 
-**Discord:** join the community, get help and see every release: https://discord.gg/a3jjvZppdq
+**Discord:** join the community, get help and see every release: https://discord.gg/H7PbGQuHsP
 
 ## What Chatter adds
 
